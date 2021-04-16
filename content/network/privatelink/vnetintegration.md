@@ -30,47 +30,70 @@ We will integrate the app into the vNet and then connect to the SQL database's p
 
 Finally we will cover a couple of key environment variables and the effect that they have.
 
-This lab uses CLI commands in a Bash shell, but you can also follow the Portal screenshots and instructions if you prefer.
+> This lab uses CLI commands in a Bash shell, but you can also click on the Portal buttons to display matching screenshots and instructions.
 
 ## Prereqs
 
+### Microhack environment
+
 **This lab is an addition to the main Private Link microhack and you will build on that environment.**
 
-> If there is interest then we will create a short script to re-generate enough of that environment to make this lab standalone..
+> If there is interest then we will create a short script to re-generate enough of that environment to make this lab standalone.
 
 ### SQL Connection String
 
 You will need a SQL connection string for testing. Run the command below to generate the connection string for the SQL server in your microhack environment. Don't forget to modify the --server value to match your SQL server's name.
 
-```bash
-az sql db show-connection-string --name microhack-sql --server microhack-richeney --client ado.net --output tsv
-```
+1. Display the sql connection string
 
-This will show a string without the username and password.
+    ```bash
+    az sql db show-connection-string --name microhack-sql --server microhack-richeney --client ado.net --output tsv
+    ```
 
-```sql
-Server=tcp:microhack-richeney.database.windows.net,1433;Database=microhack-sql;User ID=<username>;Password=<password>;Encrypt=true;Connection Timeout=30;
-```
+    This will show a string without the username and password. Example:
 
-Manually add in your SQL username, `AzureAdmin` and your SQL password to finalise the string.
+    ```sql
+    Server=tcp:microhack-richeney.database.windows.net,1433;Database=microhack-sql;User ID=<username>;Password=<password>;Encrypt=true;Connection Timeout=30;
+    ```
 
-Save it as you'll need it later.
+1. Manually add credentials and save
+
+    Edit the string, adding in your SQL username, `AzureAdmin` and your SQL password to finalise the string.
+
+    Save it as you'll need it later.
+
+    > Windows 10 hint: copy it and paste it out using `Win` + `V` so you can recall later
+
+## Set session defaults
+
+1. Export environment variables
+
+    > **Set location to the region used in the private link microhack environment.**
+    >
+    > **Change the value of _identifier_ from richeney to something unique.**
+
+
+    ```bash
+    export AZURE_DEFAULTS_GROUP="privatelink-int-microhack-rg"
+    export AZURE_DEFAULTS_LOCATION="West Europe"
+    export identifier="richeney"
+    ```
+
+    The commands above set temporary environment variables to default the resource group name and location. This shortens all of the Azure CLI commands, removing the need for always including `--resource-group` and `--location` in every command.
+
+    The identifier will be included in any command that creates an FQDN to ensure it is unique.
+
+    > If your session ends for any reason then re-export these before continuing.
 
 ## Resource group
 
-Create a resource group called `privatelink-int-microhack-rg`.
+1. Create a resource group called **privatelink-int-microhack-rg**.
 
-**Set location to the region used in the private link microhack environment and use it consistently throughout the lab.**
+    ```bash
+    az group create --name privatelink-int-microhack-rg
+    ```
 
-```bash
-export AZURE_DEFAULTS_GROUP="privatelink-int-microhack-rg"
-export AZURE_DEFAULTS_LOCATION="West Europe"
-az group create --name $AZURE_DEFAULTS_GROUP
-```
-
-The commands above set temporary environment variables to default the resource group name and location. This shortens the following commands.
-
-{{< details "Portal: Resource Group" >}}
+    {{< details "Portal: Resource Group" >}}
 
 ![rg](/network/privatelink/images/rg.png)
 
@@ -78,20 +101,24 @@ The commands above set temporary environment variables to default the resource g
 
 ## Web App
 
-Use the [Inspector Gadget](https://github.com/jelledruyts/InspectorGadget) linux container in a Premium V2 P1v2 web app.
+Create a Premium V2 P1v2 linux web app running the [Inspector Gadget](https://github.com/jelledruyts/InspectorGadget) container.
 
-> Use the Premium V2 or Premium V3 SKU for vNet integration. Or the Standard SKU but only from the newer  App Service scale units. Note that Standard supports vNet integration for the back end, but you need Premium if you also plan to have private endpoints for the front end.
+Use the Premium V2 or Premium V3 SKU for vNet integration. (Or the Standard SKU but only from the newer  App Service scale units.)
 
-```bash
-az appservice plan create --name vnet-integration --sku P1V2 --is-linux
-az webapp create --deployment-container-image-name jelledruyts/inspectorgadget:latest \
-                 --name vnet-integration-richeney \
-                 --plan vnet-integration
-```
+Note that Standard supports vNet integration for the back end, but you need Premium if you also plan to have private endpoints for the front end.
 
-> Ensure that your web app has a unique FQDN. Don't use `-richeney` in your app's name! Throughout this lab you will see `-richeney` used as my identifier, so make sure that you change this to your own identifier for uniqueness.
+1. Create the web app
 
-{{< details "Portal: Web App" >}}
+    ```bash
+    az appservice plan create --name vnet-integration --sku P1V2 --is-linux
+    az webapp create --deployment-container-image-name jelledruyts/inspectorgadget:latest \
+                     --name vnet-integration-richeney \
+                     --plan vnet-integration
+    ```
+
+    > Ensure that your web app has a unique FQDN. Don't use `-richeney` in your app's name! Throughout this lab you will see `-richeney` used as my identifier, so make sure that you change this to your own identifier for uniqueness.
+
+    {{< details "Portal: Web App" >}}
 
 ### Basics
 
@@ -110,59 +137,76 @@ Ensure that your web app has a unique FQDN. (Don't use `-richeney`!)
 
 ## Inspector Gadget
 
-OK, we'll check the default behaviour before we integrate with the vNet.
+OK, we'll check the default behaviour of the web app before we integrate with the vNet.
 
-Browse the homepage for your web app, e.g. <http://vnet-integration-richeney.azurewebsites.net>.
+1. Open the web app homepage
+
+    Browse the homepage for your web app, e.g.:
+
+    ```text
+    http://vnet-integration-richeney.azurewebsites.net
+    ```
 
 Across the top you will see a number of gadgets. We'll start with DNS.
 
 ### DNS
 
-Click on the DNS tab at the top of the Inspector Gadget webpage.
+1. Click on the DNS tab at the top of the Inspector Gadget webpage
 
-Enter in the SQL server's FQDN, e.g. `microhack-richeney.database.windows.net`.
+1. Enter in the SQL server's FQDN, e.g.:
 
-![DNS returns Public IP](/network/privatelink/images/dnsPublic.png)
+    ```text
+    microhack-richeney.database.windows.net
+    ```
 
-This nslookup should return the **public IP** of the SQL databases's public endpoint.
+1. Click on **Submit**
+
+    ![DNS returns Public IP](/network/privatelink/images/dnsPublic.png)
+
+The DNS query has resolved to the **public IP** of the SQL database's public endpoint.
 
 ### HTTP
 
-Click on the HTTP tab at the top of the Inspector Gadget webpage.
+1. Click on the HTTP tab at the top of the Inspector Gadget webpage.
 
- Curl the default page, <http://ipinfo.io/ip>. This page will display the source IP address, so you know where the traffic is coming from.
+1. Leave URL as <http://ipinfo.io/ip>
 
-![Default outbound IP](/network/privatelink/images/outboundDefault.png)
+    This page will display the source IP address, showing where the egress traffic is originating.
 
-The gadget show's your web app's current [outbound IP address](https://docs.microsoft.com/azure/app-service/overview-inbound-outbound-ips).
+1. Click on **Submit**
+
+    ![Default outbound IP](/network/privatelink/images/outboundDefault.png)
+
+The HTTP output is showing your web app's current [outbound IP address](https://docs.microsoft.com/azure/app-service/overview-inbound-outbound-ips).
 
 ### SQL
 
 OK, let's confirm we cannot connect to the SQL endpoint.
 
-Click on the SQL tab at the top of the Inspector Gadget webpage.
+1. Click on the SQL tab at the top of the Inspector Gadget webpage.
 
-* Database Type
+1. Leave _Database Type_ as **SQL Server, Azure SQL Database, ...**
 
-    Use the default SQL database type.
+    The SQL gadget also supports MySQL, PostgreSQL, MariaDB, CosmosDB etc.
 
-    (The SQL gadget also supports MySQL, PostgreSQL, MariaDB, CosmosDB etc.)
+1. Configure the _SQL Connection String_
 
-* Connection string
+    Paste in the SQL connection string you constructed and saved earlier in the lab.
 
-    Use the connection string you constructed earlier. I.e.:
+    Example connection string:
 
     ```text
     Server=tcp:microhack-richeney.database.windows.net,1433;Database=microhack-sql;User ID=AzureAdmin;Password=<password>;Encrypt=true;Connection Timeout=30;
     ```
 
-If you then click on the **Submit** button then you should see an error as we have previously blocked access to the public endpoint. The error will include the following text:
+1. Click on **Submit**
 
-```text
-Reason: An instance-specific error occurred while establishing a connection to SQL Server. Connection was denied since Deny Public Network Access is set to Yes.
-```
+    You should see an error as we have previously blocked access to the public endpoint. The error will include the following text:
 
-{{< details "Optional: Temporarily enable public endpoint access" >}}
+    _Reason: An instance-specific error occurred while establishing a connection to SQL Server._
+    _Connection was denied since Deny Public Network Access is set to Yes._
+
+    {{< details "Optional: Temporarily enable public endpoint access" >}}
 
 If you wanted to see the public endpoint working in the SQL gadget then re-open public access on the firewall for the SQL server.
 
@@ -173,46 +217,41 @@ If you wanted to see the public endpoint working in the SQL gadget then re-open 
 
 Click on Submit again with the same connection string and you should now see a successful connection:
 
-```text
-User "dbo" logged in from IP address "104.45.6.171" to database "microhack-sql" on server "microhack-richeney"
-```
+_User "dbo" logged in from IP address "104.45.6.171" to database "microhack-sql" on server "microhack-richeney"_
 
-Reverse the firewall setting to continue with the lab.
+Reverse the temporary firewall setting to continue with the lab.
 
 {{< /details >}}
 
 ## vNet Integration
 
-The vNet Integration feature requires a dedicated subnet. When you integrate using the CLI then you create an empty subnet first and then integrate the app with it.
+1. Search the environment variables for WEBSITE_PRIVATE_IP
 
-First, search the [environment variables](http://vnet-integration-richeney.azurewebsites.net/#Environment) on the Inspector Gadget homepage for WEBSITE_PRIVATE_IP.  It should not exist.
+      You can see the environment variables on the Inspector Gadget homepage. (Click on "Inspector Gadget" at the top of the screen).
 
-Now add the new subnet into the same vNet as the SQL server's private endpoint.
+      They can also be found in the Environment tab of the Kudu environment, `https://<mywe`
 
-| Name | Value |
-|---|---|
-| Virtual network name | **spoke-vnet** |
-| Virtual network resource group | **privatelink-dns-microhack-rg** |
-| Subnet name | **vNetIntegration** |
-| Address space | **10.1.1.32/27** |
+      The WEBSITE_PRIVATE_IP environment variable should **not** exist at this point.
 
-> Note that vNet integrated apps can route to any subnet in the vNet, or to those in peered or vNet Gateway connected vNets. They cannot route to on prem via ExpressRoute or S2S VPN connections.
->
-> If you are using the older Service Endpoints (rather than Private Endpoints) then they should be configured on the vNet integration subnet as service endpoints work at layer 2.
+1. Add a new subnet called vNetIntegration
 
-```bash
-az network vnet subnet create --name vNetIntegration --address-prefixes 10.1.1.32/27 \
-   --resource-group privatelink-dns-microhack-rg --vnet-name spoke-vnet
-```
+    The vNetIntegration subnet will be added to spoke-vnet that contains the SQL server's private endpoint.
 
-Update the web app to integrate with the subnet:
+    ```bash
+    az network vnet subnet create --name vNetIntegration --address-prefixes 10.1.1.32/27 \
+       --resource-group privatelink-dns-microhack-rg --vnet-name spoke-vnet
+    ```
 
-```bash
-vnetId=$(az network vnet show --resource-group privatelink-dns-microhack-rg --name spoke-vnet --query id --output tsv)
-az webapp vnet-integration add --name vnet-integration-richeney --vnet $vnetId --subnet vNetIntegration
-```
+    Note that vNet integrated apps can route to any subnet in the vNet, or to those in peered or vNet Gateway connected vNets. They cannot route to on prem via ExpressRoute or S2S VPN connections.
 
-{{< details "Portal: Regional vNet Integration" >}}
+1. Integrate the web app into the subnet
+
+    ```bash
+    vnetId=$(az network vnet show --resource-group privatelink-dns-microhack-rg --name spoke-vnet --query id --output tsv)
+    az webapp vnet-integration add --name vnet-integration-richeney --vnet $vnetId --subnet vNetIntegration
+    ```
+
+    {{< details "Portal: Regional vNet Integration" >}}
 
 The Portal screen for vNet integration is found in the Networking blade for the web app.
 
@@ -232,7 +271,7 @@ Outgoing traffic to the RFC1918 address space will now go via the new subnet. (T
 
 The web app's DNS will be set to match the vNet's DNS by default. If you are just talking to VMs or other private IPs in your vNet then you are fine.
 
-Retest the SQL and DNS gadgets. Has anything changed?
+Retest the SQL and DNS gadgets. Has anything changed? <<YOU ARE HERE>>
 
 ## Environment variables
 
@@ -290,7 +329,7 @@ Search the portal for NAT Gateway and create a new one.
 
 > NAT gateway's are useful if you ever need to have control over the outgoing IP address, notably for customer allowed lists.
 
-Restart the web app, reload the Insepctor Gadget homepage and check the HTTP gadget.
+Restart the web app in the Azure portal, reload the Inspector Gadget homepage and recheck the HTTP gadget.
 
 You should now see a different address, matching the public IP on the NAT gateway, proving that non-RFC1918 traffic is no going through the vNet.
 

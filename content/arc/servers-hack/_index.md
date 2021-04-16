@@ -9,7 +9,7 @@ menu:
     identifier: arc-servers-hack
 series:
  - arc
-weight: 5
+weight: 2
 ---
 
 ## Introduction
@@ -18,7 +18,7 @@ This is a two day hack to get you skipped up in the various aspects of using Azu
 
 The hack is used in the UK to enable partners, but you are absolutely free to reuse the content yourself as it is 100% public. The hack is a challenge hack, so each section gives you a number of challenges to meet, plus a set of links for your reference. As you complete each section you will screen share with your proctor to confirm the success criteria has been met before moving on to the next section.
 
-**Please make sure that you have met the [prereqs](/arc/prereqs) before attending.**
+**Please make sure that you have met the [prereqs](/arc/servers-hack/prereqs) before attending.**
 
 ## Agenda
 

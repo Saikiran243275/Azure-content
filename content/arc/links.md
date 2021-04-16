@@ -9,7 +9,7 @@ menu:
     identifier: arc-links
 series:
  - arc
-weight: 9
+weight: 4
 ---
 
 ## Core Links
@@ -37,7 +37,7 @@ The Azure Arc Jumpstart site is highly recommended for going a little deeper wit
 | **Site** | **Description** |
 |---|---|
 | [WhatTheHack / 025-ArcEnabledServers](https://github.com/microsoft/WhatTheHack/tree/master/025-ArcEnabledServers) | Short challenge hack for Arc Enabled Servers |
-| [WhatTheHack / 026-ArcEnabledKubernetes](https://github.com/microsoft/WhatTheHack/tree/master/025-ArcEnabledServers) | Short challenge hack for Arc Enabled Kubernetes |
+| [WhatTheHack / 026-ArcEnabledKubernetes](https://github.com/microsoft/WhatTheHack/tree/master/026-ArcEnabledKubernetes) | Short challenge hack for Arc Enabled Kubernetes |
 | <https://azurecitadel.com/arc-servers/> | This page |
 | [aka.ms/AzureArcSkilling](https://aka.ms/AzureArcSkilling) | Demo videos |
 
